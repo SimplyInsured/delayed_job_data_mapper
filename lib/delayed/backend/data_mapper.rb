@@ -69,6 +69,7 @@ module Delayed
         # Returns true if we have the lock, false otherwise.
         def lock_exclusively!(max_run_time, worker = worker_name)
           now = self.class.db_time_now
+          binding.pry
           adapter = ::DataMapper.repository.adapter
 
           # Changed calls to use straight SQL statements
