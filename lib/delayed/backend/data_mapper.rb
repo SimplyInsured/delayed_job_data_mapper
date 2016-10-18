@@ -84,10 +84,10 @@ module Delayed
           end
           adapter.select sql
 
-          affected_rows_sql = "SELECT COUNT(id) FROM delayed_jobs WHERE id = '#{id}' AND locked_by = '#{worker}'"
+          affected_rows_sql = "SELECT FROM delayed_jobs WHERE id = '#{id}' AND locked_by = '#{worker}'"
           affected_rows = adapter.select affected_rows_sql
 
-          if affected_rows && affected_rows[0] && affected_rows[0] == 1
+          if affected_rows && affected_rows.count == 1
             reload # pick up the updates above
             true
           else
