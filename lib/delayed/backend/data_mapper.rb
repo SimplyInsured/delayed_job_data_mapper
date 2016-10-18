@@ -68,20 +68,26 @@ module Delayed
         # Returns true if we have the lock, false otherwise.
         def lock_exclusively!(max_run_time, worker = worker_name)
           now = self.class.db_time_now
+          adapter = DataMapper.repository.adapter
 
-          # FIXME - this is a bit gross
-          # DM doesn't give us the number of rows affected by a collection update
-          # so we have to circumvent some niceness in DM::Collection here
-          collection = if locked_by != worker
-            self.class.expired(max_run_time).never_run.all(:id => id)
+          # Changed calls to use straight SQL statements
+          # Moved the Get and Update structure in to a single query
+          # The affected rows system was pulled out to its own query after the update
+
+          sql = ""
+          if locked_by != worker
+            sql = "UPDATE delayed_jobs SET locked_at = '#{now.to_s(:db)}', locked_by = '#{worker}' WHERE id = #{id} AND (locked_at IS NULL OR locked_at < '#{(now - max_run_time).to_s(:db)}') AND (run_at IS NULL OR run_at <= '#{now.to_s(:db)}')"
+            #self.class.expired(max_run_time).never_run.all(:id => id)
           else
-            self.class.locked_by(worker).all(:id => id)
+            sql = "UPDATE delayed_jobs SET locked_at = '#{now.to_s(:db)}', locked_by = '#{worker}' where id = #{id} AND locked_by = '#{worker}'"
+            #self.class.locked_by(worker).all(:id => id)
           end
+          adapter.select sql
 
-          attributes = collection.model.new(:locked_at => now, :locked_by => worker).dirty_attributes
-          affected_rows = self.repository.update(attributes, collection)
+          affected_rows_sql = "SELECT COUNT(id) FROM delayed_jobs WHERE id = '#{id}' AND locked_by = '#{worker}'"
+          affected_rows = adapter.select affected_rows_sql
 
-          if affected_rows == 1
+          if affected_rows && affected_rows[0] && affected_rows[0] == 1
             reload # pick up the updates above
             true
           else
