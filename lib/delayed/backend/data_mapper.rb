@@ -4,7 +4,6 @@ module Delayed
     module DataMapper
       class Job
         include ::DataMapper::Resource
-        include ::DataMapper::Repository
         include Delayed::Backend::Base
 
         storage_names[:default] = 'delayed_jobs'
