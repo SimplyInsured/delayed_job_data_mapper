@@ -4,6 +4,7 @@ module Delayed
     module DataMapper
       class Job
         include ::DataMapper::Resource
+        include ::DataMapper::Repository
         include Delayed::Backend::Base
 
         storage_names[:default] = 'delayed_jobs'
@@ -84,16 +85,8 @@ module Delayed
           end
           adapter.select sql
 
-          affected_rows_sql = "SELECT FROM delayed_jobs WHERE id = '#{id}' AND locked_by = '#{worker}'"
-          affected_rows = adapter.select affected_rows_sql
-
-          if affected_rows && affected_rows.count == 1
-            reload # pick up the updates above
-            true
-          else
-            # does this mean > 1 was locked, or none?
-            false
-          end
+          reload
+          return locked_by == worker
         end
 
         def reschedule_at
